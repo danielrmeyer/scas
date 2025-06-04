@@ -19,6 +19,7 @@
  * 
  * Modifications:
  *   – June 4 2025: Added SymFunc case class for arbitrary symbolic functions.
+ *   – June 4 2025: Added an expand method
  */
 package smile.cas
 
@@ -33,6 +34,9 @@ trait Scalar extends Tensor {
   def apply(env: (String, Tensor)*): Scalar = apply(Map(env*))
   /** Simplify the expression. */
   def simplify: Scalar = this
+
+  /** Expands products and powers into expanded form (e.g., (x+2)^2 -> x^2 + 4x + 4). */
+  def expand: Scalar = this
 
   /** Returns the derivative. */
   def d(dx: Var): Scalar
@@ -200,6 +204,7 @@ case class Add(x: Scalar, y: Scalar) extends Scalar {
     case (a, b) if a == b => 2 * a
     case _ => this
   }
+  override def expand: Scalar = (x.expand) + (y.expand)
 }
 
 /** x + y */
@@ -273,6 +278,7 @@ case class Sub(x: Scalar, y: Scalar) extends Scalar {
     case (a, b) if a == b => Val(0)
     case _ => this
   }
+  override def expand: Scalar = (x.expand) - (y.expand)
 }
 
 /** x - y */
@@ -412,6 +418,18 @@ case class Mul(x: Scalar, y: Scalar) extends Scalar {
     case (a, b @ Val(_)) => b * a
     case (a, b) if a == b => a ** 2
     case _ => this
+  }
+  override def expand: Scalar = {
+    val ex = x.expand
+    val ey = y.expand
+    (ex, ey) match {
+      case (Add(a, b), _) =>
+        (a * ey).expand + (b * ey).expand
+      case (_, Add(c, d)) =>
+        (ex * c).expand + (ex * d).expand
+      case _ =>
+        ex * ey
+    }
   }
 }
 
@@ -599,6 +617,27 @@ case class Power(x: Scalar, y: Scalar) extends Scalar {
     case (Power(a, b), c) => a ** (b * c)
     case _ => this
   }
+  override def expand: Scalar = (x.expand, y.simplify) match {
+    case (Add(a, b), Val(n)) if n % 1.0 == 0 =>
+      val m = n.toInt
+      if (m == 0) {
+        Val(1)
+      } else if (m > 0) {
+        // Binomial expansion
+        (0 to m).map { k =>
+          val coeff = Val(combinations(m, k).toDouble)
+          val termA = (a.expand ** Val((m - k).toDouble)).expand
+          val termB = (b.expand ** Val(k.toDouble)).expand
+          coeff * (termA * termB)
+        }.reduce(_ + _).simplify
+      } else {
+        // Negative exponents: leave as is
+        this
+      }
+    case _ =>
+      x.expand ** y.simplify
+  }
+
 }
 
 /** x ** y */
@@ -951,4 +990,10 @@ case class SymFunc(name: String, arg: Scalar) extends Scalar {
 
   override def simplify: Scalar =
     SymFunc(name, arg.simplify)
+}
+
+/** Compute binomial coefficient C(n, k). */
+private def combinations(n: Int, k: Int): Long = {
+  def fact(i: Int): Long = if (i <= 1) 1L else i * fact(i - 1)
+  fact(n) / (fact(k) * fact(n - k))
 }
