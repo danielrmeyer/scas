@@ -13,6 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with Smile. If not, see <https://www.gnu.org/licenses/>.
+ * 
+ *
+ * Modifications Copyright (c) 2025 Daniel Meyer. All rights reserved.
+ * 
+ * Modifications:
+ *   – June 4 2025: Added SymFunc case class for arbitrary symbolic functions.
  */
 package smile.cas
 
@@ -920,4 +926,29 @@ case class Round(x: Scalar) extends IntScalar {
     case Val(a) => IntVal(Math.round(a).toInt)
     case _ => this
   }
+}
+
+/** Symbolic function f(x) with unknown form. */
+case class SymFunc(name: String, arg: Scalar) extends Scalar {
+  override def toString: String = s"$name($arg)"
+
+  override def apply(env: Map[String, Tensor]): Scalar =
+    SymFunc(name, arg(env))
+
+  override def d(dx: Var): Scalar = {
+    // Represent derivative as f'(arg) * arg'
+    val innerDeriv = arg.d(dx)
+    val derivName = s"${name}'"
+    SymFunc(derivName, arg) * innerDeriv
+  }
+
+  override def d(dx: VectorVar): Vector = {
+    // Vector derivative: f'(arg) * grad(arg)
+    val innerGrad = arg.d(dx)
+    val derivName = s"${name}'"
+    SymFunc(derivName, arg) * innerGrad
+  }
+
+  override def simplify: Scalar =
+    SymFunc(name, arg.simplify)
 }
