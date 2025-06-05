@@ -1,3 +1,5 @@
+> **Warning:** This is an experimental project.
+
 # SCAS (Smile Computer Algebra System)
 
 SCAS is a lightweight, purely functional symbolic algebra library in Scala, originally forked from the open-source Smile CAS module. It has been restructured to work simply with scala-cli, allowing you to experiment with symbolic expressions, differentiation, expansion, and factoring using a simple REPL.
