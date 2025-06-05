@@ -100,33 +100,6 @@ scala> import smile.cas._
 
 ---
 
-## Example: Differentiation
-
-Below is a “cool” example of differentiating a moderately complex symbolic expression inside a Scala REPL. Copy/paste this into your `scala-cli repl .` session.*
-
-```scala
-scala> import smile.cas._
-
-// Define the variable
-scala> val x = Var("x")
-
-// Build a composite expression:
-//   f(x) = (x + 2)**3 * sin(x) + 5 * log(x)
-scala> val expr: Scalar = ((x + Val(2)) ** Val(3)) * Sin(x) + Val(5) * Log(x)
-
-// Compute the derivative f'(x)
-scala> val deriv: Scalar = expr.d(x).simplify
-
-// Print the original expression and its derivative
-scala> println(s"f(x)   = $expr")
-f(x)   = (x + 2.0)**3.0 * sin(x) + 5.0 * log(x)
-
-scala> println(s"f'(x)  = $deriv")
-f'(x)  = (x + 2.0)**3.0 * cos(x) + 3.0 * (x + 2.0)**2.0 * sin(x) + 5.0 / x
-```
-
----
-
 ## Project Structure
 
 ```
