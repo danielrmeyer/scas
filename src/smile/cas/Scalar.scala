@@ -19,9 +19,12 @@
  * 
  * Modifications:
  *   – June 4 2025: Added SymFunc case class for arbitrary symbolic functions.
- *   – June 4 2025: Added an expand method
+ *   – June 4 2025: Added a expand method to Scalar
+ *   – June 4 2025: Added a factor method to Scalar
  */
 package smile.cas
+
+import scala.math
 
 /** Scalar: rank-0 tensor. */
 trait Scalar extends Tensor {
@@ -37,6 +40,9 @@ trait Scalar extends Tensor {
 
   /** Expands products and powers into expanded form (e.g., (x+2)^2 -> x^2 + 4x + 4). */
   def expand: Scalar = this
+
+  /** Factor expanded expressions (e.g., x^2 + 2*x + 1 -> (x + 1)^2). */
+  def factor: Scalar = this
 
   /** Returns the derivative. */
   def d(dx: Var): Scalar
@@ -205,6 +211,21 @@ case class Add(x: Scalar, y: Scalar) extends Scalar {
     case _ => this
   }
   override def expand: Scalar = (x.expand) + (y.expand)
+
+  override def factor: Scalar = {
+    this match {
+      // Match pattern x^2 + 2*x*b + b^2  => (x + b)^2
+      case Add(
+             Add(Power(a, Val(n1)), Mul(Val(c), a2)),
+             Val(d)
+           ) if n1 == 2 && a == a2 && math.abs(c * c - 4 * d) < 1e-8 =>
+        val bVal = Val(math.sqrt(d))
+        Power(Add(a, bVal), Val(2))
+      case _ =>
+        // Recursively factor subexpressions
+        Add(x.factor, y.factor)
+    }
+  }
 }
 
 /** x + y */
